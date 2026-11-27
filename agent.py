@@ -39,6 +39,7 @@ class Inserat:
     bis: date | None = None
     kontakt: str = ""
     hinweise: list = field(default_factory=list)
+    beschreibung: str = ""
 
 
 # ---------- Helfer ----------
@@ -129,7 +130,9 @@ def wgg_liste():
 
 
 def wgg_detail(i: Inserat):
-    t = txt(BeautifulSoup(get(i.url), "html.parser").body).lower()
+    soup = BeautifulSoup(get(i.url), "html.parser")
+    i.beschreibung = " ".join(txt(x) for x in soup.select("#ad_description_text, [id^=freitext], .freitext"))
+    t = txt(soup.body).lower()
     if m := re.search(r"gesamtmiete\s*:?\s*(\d[\d.]*)\s*€", t):
         i.preis = int(m.group(1).replace(".", ""))
     return t
@@ -179,6 +182,7 @@ def ka_detail(i: Inserat):
                 details[k.lower()] = t[len(k):].strip(" :")
     tags = " ".join(t for t in lis if len(t) < 40).lower()
     desc = txt(soup.select_one("#viewad-description-text"))
+    i.beschreibung = desc
     i.titel = txt(soup.select_one("#viewad-title")) or i.titel
     page = txt(soup.body)
     m = re.search(r"\b[A-ZÄÖÜ]\s+([A-ZÄÖÜ][a-zäöüß]+)[^|]{0,20}?\s+Privater Nutzer", page)
@@ -217,8 +221,45 @@ def ka_detail(i: Inserat):
 
 
 # ---------- Telegram ----------
+EN = {"the", "and", "you", "is", "with", "room", "flat", "apartment", "we", "are", "for", "in", "of",
+      "available", "looking", "our", "it", "to", "this", "a", "an", "kitchen", "rent", "from", "will"}
+DE = {"der", "die", "und", "das", "ist", "mit", "zimmer", "wohnung", "wir", "sind", "für", "ein", "eine",
+      "ab", "suchen", "unsere", "es", "zu", "dies", "küche", "miete", "von", "auf", "nicht", "sich"}
+
+
+def ist_englisch(i: Inserat):
+    worte = re.findall(r"[a-zäöüß]+", (i.beschreibung or i.titel).lower())
+    en = sum(w in EN for w in worte)
+    de = sum(w in DE for w in worte)
+    return en >= 5 and en > 1.5 * de
+
+
+TRENNER = "===ENGLISH==="
+
+
+def vorlagen():
+    """Secret ANFRAGE_VORLAGE: deutsche Vorlage, optional + TRENNER + englische Vorlage."""
+    roh = os.environ.get("ANFRAGE_VORLAGE") or TEMPLATE_FILE.read_text(encoding="utf-8")
+    de, _, en = roh.partition(TRENNER)
+    return de, os.environ.get("ANFRAGE_VORLAGE_EN") or en.strip() or None
+
+
+def anfrage_en(i: Inserat):
+    vorlage = vorlagen()[1]
+    if not vorlage:
+        return None
+    name = vorname(i.kontakt)
+    objekt = ("your flat" if i.art == "1-Zimmer-Wohnung" else "your room") if name else \
+             ("the flat" if i.art == "1-Zimmer-Wohnung" else "the room")
+    ort = re.sub(r"^\d{5}\s+", "", i.ort.split(" · ")[0]) or "Munich"
+    return (vorlage.replace("{gruss}", f"Hi {name}!" if name else "Hi!")
+                   .replace("{objekt}", objekt).replace("{ort}", ort)).strip()
+
+
 def anfrage(i: Inserat):
-    vorlage = os.environ.get("ANFRAGE_VORLAGE") or TEMPLATE_FILE.read_text(encoding="utf-8")
+    if ist_englisch(i) and (en := anfrage_en(i)):
+        return en
+    vorlage = vorlagen()[0]
     name = vorname(i.kontakt)
     objekt = "deine Wohnung" if i.art == "1-Zimmer-Wohnung" else "euer WG-Zimmer"
     if not name:
