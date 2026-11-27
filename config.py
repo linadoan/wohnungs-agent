@@ -32,3 +32,12 @@ PLZ = {
 
 MAX_DETAILSEITEN_PRO_LAUF = 25          # schont die Seiten
 PAUSE_SEKUNDEN = 2
+
+# Ausschlüsse (im Inseratstext)
+AUSSCHLUSS_KEYWORDS = [
+    "studentenverbindung", "studentische verbindung", "verbindungshaus", "burschenschaft", "corps ",
+    "korporation", "landsmannschaft", "bundesbruder", "aktivitas", "cartellverband", "katholisch",
+    "kath. ", "evangelisch", "christliche wg", "christliches", "glaubens", "religiös", "kirchlich",
+    "gemeindehaus", "nur für männer", "nur männer", "nur männlich", "männer-wg", "jungs-wg",
+    "mitbewohner (m)", "student (m)", "männlichen mitbewohner",
+]

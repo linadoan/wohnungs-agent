@@ -120,6 +120,8 @@ def wgg_liste():
                 i.von = d(m.group(1))
                 i.bis = d(m.group(2)) if m.group(2) else None
             i.kontakt = txt(c.select_one(".user-name"))
+            if re.search(r"Freier Platz\s+man\b", t):  # WG sucht nur Männer
+                continue
             out.append(i)
         if not soup.select(".offer_list_item[data-id]"):
             raise RuntimeError(f"0 Inserate für {art} – evtl. blockiert/Captcha")
@@ -326,6 +328,8 @@ def main():
                 continue
             seen.add(i.id)
             if text is None:
+                continue
+            if any(k in text for k in C.AUSSCHLUSS_KEYWORDS):
                 continue
             if i.quelle == "Kleinanzeigen" and not zeitraum_ok(i):
                 continue
