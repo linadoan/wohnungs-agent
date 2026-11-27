@@ -46,8 +46,6 @@ def get(url):
     time.sleep(C.PAUSE_SEKUNDEN)
     r = S.get(url, timeout=30)
     r.raise_for_status()
-    if "captcha" in r.text.lower()[:5000] and "wg-gesucht" in url:
-        raise RuntimeError("Captcha")
     return r.text
 
 
@@ -121,6 +119,8 @@ def wgg_liste():
                 i.bis = d(m.group(2)) if m.group(2) else None
             i.kontakt = txt(c.select_one(".user-name"))
             out.append(i)
+        if not soup.select(".offer_list_item[data-id]"):
+            raise RuntimeError(f"0 Inserate für {art} – evtl. blockiert/Captcha")
     return out
 
 
@@ -166,15 +166,24 @@ def ka_monat(s):
 def ka_detail(i: Inserat):
     soup = BeautifulSoup(get(i.url), "html.parser")
     details = {}
-    for li in soup.select(".addetailslist--detail"):
-        val = txt(li.select_one(".addetailslist--detail--value"))
-        key = txt(li).replace(val, "").strip()
-        details[key.lower()] = val
-    tags = " ".join(txt(x) for x in soup.select(".checktag")).lower()
+    keys = ["Art der Unterkunft", "Mietart", "Verfügbar ab", "Verfügbar bis", "Zimmer", "Wohnfläche",
+            "Warmmiete", "Kaltmiete", "Nebenkosten"]
+    lis = [txt(li) for li in soup.find_all("li")]
+    for t in lis:
+        for k in keys:
+            if t.startswith(k) and len(t) < 120 and k.lower() not in details:
+                details[k.lower()] = t[len(k):].strip(" :")
+    tags = " ".join(t for t in lis if len(t) < 40).lower()
     desc = txt(soup.select_one("#viewad-description-text"))
     i.titel = txt(soup.select_one("#viewad-title")) or i.titel
-    i.kontakt = txt(soup.select_one(".userprofile-vip")) or ""
+    page = txt(soup.body)
+    m = re.search(r"\b[A-ZÄÖÜ]\s+([A-ZÄÖÜ][a-zäöüß]+)[^|]{0,20}?\s+Privater Nutzer", page)
+    i.kontakt = m.group(1) if m else ""
+    if w := re.search(r"(\d[\d.]*)", details.get("warmmiete", "")):
+        i.preis = int(w.group(1).replace(".", ""))
     art = details.get("art der unterkunft", "").lower()
+    if "geteilt" in art or "shared" in art:
+        return None
     i.art = "WG-Zimmer" if "zimmer" in art and "gesamte" not in art else "1-Zimmer-Wohnung"
     if i.art == "1-Zimmer-Wohnung":
         z = details.get("zimmer", "1").replace(",", ".")
@@ -198,7 +207,7 @@ def ka_detail(i: Inserat):
         i.hinweise.append("befristet – Enddatum im Text prüfen")
     if m := re.search(r"(\d+)\s*er[\s-]?wg", desc.lower() + " " + i.titel.lower()):
         i.wg_personen = int(m.group(1))
-    if not re.search(r"warm|inkl|gesamtmiete|all.?in", desc.lower()):
+    if "warmmiete" not in details and not re.search(r"warm|inkl|gesamtmiete|all.?in", desc.lower()):
         i.hinweise.append("⚠️ prüfen, ob Preis warm ist")
     return (desc + " " + i.titel).lower()
 
