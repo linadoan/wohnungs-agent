@@ -235,9 +235,15 @@ CHAT = {"id": None}
 def chat_id(state):
     """Chat-ID aus Secret, gespeichertem Zustand oder der ersten Nachricht an den Bot."""
     cid = os.environ.get("TELEGRAM_CHAT_ID") or state.get("chat_id")
-    tok = os.environ.get("TELEGRAM_TOKEN")
+    tok = (os.environ.get("TELEGRAM_TOKEN") or "").strip()
     if not cid and tok:
+        me = requests.get(f"https://api.telegram.org/bot{tok}/getMe", timeout=30).json()
+        print("Bot:", me.get("result", {}).get("username") if me.get("ok") else f"Token ungültig ({me.get('description')})")
+        wh = requests.get(f"https://api.telegram.org/bot{tok}/getWebhookInfo", timeout=30).json()
+        if wh.get("result", {}).get("url"):
+            requests.get(f"https://api.telegram.org/bot{tok}/deleteWebhook", timeout=30)
         r = requests.get(f"https://api.telegram.org/bot{tok}/getUpdates", timeout=30).json()
+        print("Updates:", len(r.get("result", [])), "ok" if r.get("ok") else r.get("description"))
         for u in r.get("result", []):
             if (m := u.get("message")) and m.get("chat", {}).get("type") == "private":
                 cid = str(m["chat"]["id"])
@@ -251,7 +257,7 @@ def chat_id(state):
 
 
 def telegram(text):
-    tok, chat = os.environ.get("TELEGRAM_TOKEN"), CHAT["id"]
+    tok, chat = (os.environ.get("TELEGRAM_TOKEN") or "").strip(), CHAT["id"]
     if not tok or not chat:
         print("---- (kein Telegram konfiguriert) ----\n" + text)
         return
