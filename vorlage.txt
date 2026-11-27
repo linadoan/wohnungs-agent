@@ -1,0 +1,4 @@
+{gruss}
+
+(Beispielvorlage – die echte Anfrage liegt im GitHub-Secret ANFRAGE_VORLAGE.)
+Ich interessiere mich sehr für {objekt} in {ort}.
