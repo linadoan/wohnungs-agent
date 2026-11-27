@@ -68,8 +68,10 @@ def zeitraum_ok(i: Inserat):
     """True/False; fügt Hinweise hinzu."""
     if i.von is None:
         i.hinweise.append("⚠️ Einzugsdatum prüfen")
-    elif not (C.EINZUG_FRUEHESTENS <= i.von <= C.EINZUG_SPAETESTENS):
+    elif not (C.FREI_AB_FRUEHESTENS <= i.von <= C.EINZUG_SPAETESTENS):
         return False
+    elif i.von < C.EINZUG_FRUEHESTENS:
+        i.hinweise.append("frei schon im Dezember – Einzug zum 01.01. anfragen")
     if i.bis is None:
         if not C.UNBEFRISTET_OK:
             return False

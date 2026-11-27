@@ -3,6 +3,7 @@ from datetime import date
 
 MAX_WARMMIETE = 900                     # € inkl. Nebenkosten
 EINZUG_FRUEHESTENS = date(2027, 1, 1)
+FREI_AB_FRUEHESTENS = date(2026, 12, 1)   # Angebote ab Dez. auch melden (Einzug 01.01. anfragen)
 EINZUG_SPAETESTENS = date(2027, 1, 15)
 AUSZUG_FRUEHESTENS = date(2027, 8, 31)  # befristete Angebote müssen mind. bis hier laufen
 UNBEFRISTET_OK = True                   # unbefristet = zweite Wahl, wird markiert
