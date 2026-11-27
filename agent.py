@@ -227,8 +227,29 @@ def anfrage(i: Inserat):
                    .replace("{ort}", ort or "München")).strip()
 
 
+CHAT = {"id": None}
+
+
+def chat_id(state):
+    """Chat-ID aus Secret, gespeichertem Zustand oder der ersten Nachricht an den Bot."""
+    cid = os.environ.get("TELEGRAM_CHAT_ID") or state.get("chat_id")
+    tok = os.environ.get("TELEGRAM_TOKEN")
+    if not cid and tok:
+        r = requests.get(f"https://api.telegram.org/bot{tok}/getUpdates", timeout=30).json()
+        for u in r.get("result", []):
+            if (m := u.get("message")) and m.get("chat", {}).get("type") == "private":
+                cid = str(m["chat"]["id"])
+        if cid:
+            state["chat_id"] = cid
+            CHAT["id"] = cid
+            telegram("✅ Wohnungs-Agent verbunden! Ab jetzt bekommst du hier neue Treffer.")
+        else:
+            print("Noch keine Chat-ID: schreib dem Bot einmal eine Nachricht.")
+    CHAT["id"] = cid
+
+
 def telegram(text):
-    tok, chat = os.environ.get("TELEGRAM_TOKEN"), os.environ.get("TELEGRAM_CHAT_ID")
+    tok, chat = os.environ.get("TELEGRAM_TOKEN"), CHAT["id"]
     if not tok or not chat:
         print("---- (kein Telegram konfiguriert) ----\n" + text)
         return
@@ -257,6 +278,9 @@ def melde(i: Inserat):
 def main():
     state = json.loads(STATE_FILE.read_text()) if STATE_FILE.exists() else {"seen": [], "errors": {}}
     seen = set(state["seen"])
+    chat_id(state)
+    if os.environ.get("TELEGRAM_TOKEN") and not CHAT["id"]:
+        return  # erst suchen, wenn Telegram verbunden ist
     details_left = C.MAX_DETAILSEITEN_PRO_LAUF
     treffer = 0
 
