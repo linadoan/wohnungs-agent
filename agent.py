@@ -300,9 +300,12 @@ def main():
             melde(i)
             treffer += 1
 
+    print(f"Fertig: {treffer} Treffer gefunden")
+    if not os.environ.get("TELEGRAM_TOKEN"):
+        print("Testmodus (kein Telegram): gesehene Inserate werden nicht gespeichert.")
+        return
     state["seen"] = list(seen)
     STATE_FILE.write_text(json.dumps(state, indent=0))
-    print(f"Fertig: {treffer} Treffer gemeldet")
 
 
 if __name__ == "__main__":
